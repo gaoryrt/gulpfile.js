@@ -7,11 +7,15 @@ var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     merge = require('gulp-merge-link'),
     zip = require('gulp-zip'),
-    imagemin = require('gulp-imagemin'),
+    image = require('gulp-image'),
     connect = require('gulp-connect'),
     connect = require('gulp-connect'),
     gulpOpen = require('gulp-open'),
-    uncss = require('gulp-uncss')
+    scssSRC = 'app/css/index.scss',
+    jsSRC = 'app/js/*.js',
+    gulpSequence = require('gulp-sequence'),
+    replace = require('gulp-replace-path'),
+    path = require('path')
 
 gulp.task('sass', function() {
     return gulp.src('app/css/*.scss')
@@ -29,28 +33,25 @@ gulp.task('mergejs', function() {
         .pipe(gulp.dest('app'))
 })
 
-gulp.task('mergecss', ['sass'], function() {
+gulp.task('mergecss', function() {
     return gulp.src('app/css/*.css')
         .pipe(concatCss("merged.css"))
         .pipe(gulp.dest('app'));
 });
 
-gulp.task('minicss', ['mergecss'], function() {
+gulp.task('minicss', function() {
     return gulp.src('app/merged.css')
-#         .pipe(uncss({
-            html: ['app/*.html']
-        }))
         .pipe(cleanCSS({ compatibility: 'ie8' }))
         .pipe(gulp.dest('DIST'));
 });
 
-gulp.task('minijs', ['mergejs'], function() {
+gulp.task('minijs', function() {
     return gulp.src('app/merged.js')
         .pipe(uglify())
         .pipe(gulp.dest('DIST'))
 });
 
-gulp.task('merge', ['minicss', 'minijs'], function() {
+gulp.task('merge', function() {
     return gulp.src('app/index.html')
         .pipe(merge({
             'merged.css': ['css/*.css'],
@@ -59,15 +60,15 @@ gulp.task('merge', ['minicss', 'minijs'], function() {
         .pipe(gulp.dest('DIST'));
 });
 
-gulp.task('zip', ['merge', 'miniimg'], function() {
+gulp.task('zip', function() {
     return gulp.src(['DIST/**'])
-        .pipe(zip(D.toLocaleString() + '.zip'))
+        .pipe(zip(D.getHours() + '-' + D.getMinutes() + '-' + D.getSeconds() + '.zip'))
         .pipe(gulp.dest('./'))
 })
 
 gulp.task('miniimg', function() {
     return gulp.src('app/img/*')
-        .pipe(imagemin())
+        .pipe(image())
         .pipe(gulp.dest('DIST/img'))
 });
 
@@ -76,9 +77,7 @@ gulp.task('reload', function() {
         .pipe(connect.reload());
 });
 
-gulp.task('build', ['sass', 'mergejs', 'mergecss', 'minijs', 'minicss', 'merge', 'miniimg', 'zip'], function() {
-    console.log('building files')
-})
+gulp.task('b', gulpSequence(['sass', 'mergejs'], ['mergecss', 'minijs'], 'minicss', 'merge', 'miniimg', 'path', 'zip'))
 
 gulp.task('web', function() {
     connect.server({
@@ -91,7 +90,7 @@ gulp.task('web', function() {
         }));
 });
 
-gulp.task('watch', ['web', 'sass'], function() {
+gulp.task('w', ['web', 'sass'], function() {
     gulp.watch('app/css/*.scss', ['sass', 'reload'])
     gulp.watch('app/js/*.js', ['reload'])
     gulp.watch('app/img/*', ['reload'])
@@ -99,3 +98,11 @@ gulp.task('watch', ['web', 'sass'], function() {
 })
 
 gulp.task('default', ['web']);
+
+gulp.task('path', function() {
+    gulp.src(['app/*.html', 'app/js/*.js'])
+        .pipe(replace(/f=\"css\//, 'f=\"/css/'))
+        .pipe(replace(/c=\"js\//, 'c=\"/js/'))
+        .pipe(replace(/\"img\//, '\"/img/'))
+        .pipe(gulp.dest('.'));
+});
